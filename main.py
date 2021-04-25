@@ -1,3 +1,7 @@
+import requests
+import plotly
+import time
+import json
 import os
 
 vix_data_dir = "bin/vix_data/"
@@ -10,7 +14,7 @@ date_dict = {}
 for fn in files:
     with open(vix_data_dir + fn, "r") as f:
         file = f.readlines()
-       
+
     file = [line.replace("\n", "").split(",") for line in file]
 
     dp = {}
@@ -52,9 +56,46 @@ import pandas as pd
 
 data = pd.read_csv("bin/dump.csv")
 
-fig = go.Figure(data=go.Surface(x=list(range(7)), y=list(range(max_len)), z=data.values))
-                
-fig.update_layout(title='Volatility Index', autosize=False,
-                  width=1250, height=1000, template="plotly_dark", margin=dict(l=65, r=50, b=65, t=90))
 
-fig.show()
+print(len(data.values))
+
+for j in range(len(data.values)):
+    new_values = [[] for x in range(len(data.values))]
+
+    for i in range(len(data.values)):
+        new_values[(i + j) % len(data.values)] = data.values[i]
+
+    fig = go.Figure(
+        data=go.Surface(
+            x=list(range(7)),
+            y=list(range(max_len)),
+            z=new_values)
+    )
+
+    fig.update_layout(
+        title='Volatility Index',
+        autosize=False,
+        width=1250,
+        height=1000,
+        template="plotly_dark",
+        margin=dict(l=65, r=50, b=65, t=90),
+        xaxis = {
+            "showgrid": False
+        }
+        )
+
+    request_params = {
+            "figure": fig.to_dict(),
+            "format": "png",
+            "scale": 1,
+            "width": 500,
+            "height": 500
+    }
+
+    json_str = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    response = requests.post("http://adi.wtf:9092/",
+                             data=json_str)
+    print(f"writing img/{j}.png")
+    with open(f"img/{j}.png", "wb") as f:
+        f.write(response.content)
+
